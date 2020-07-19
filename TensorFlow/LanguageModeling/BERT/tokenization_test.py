@@ -28,11 +28,10 @@ class TokenizationTest(tf.test.TestCase):
   def test_full_tokenizer(self):
     vocab_tokens = [
         "[UNK]", "[CLS]", "[SEP]", "want", "##want", "##ed", "wa", "un", "runn",
-        "##ing", ","
+        "##ing", ",", "1@1", "0@0", "km", "1@3", "2@2", "3@1"
     ]
     with tempfile.NamedTemporaryFile(delete=False, mode="w") as vocab_writer:
       vocab_writer.write("".join([x + "\n" for x in vocab_tokens]))
-
       vocab_file = vocab_writer.name
 
     tokenizer = tokenization.FullTokenizer(vocab_file)
@@ -40,9 +39,30 @@ class TokenizationTest(tf.test.TestCase):
 
     tokens = tokenizer.tokenize(u"UNwant\u00E9d,running")
     self.assertAllEqual(tokens, ["un", "##want", "##ed", ",", "runn", "##ing"])
-
     self.assertAllEqual(
         tokenizer.convert_tokens_to_ids(tokens), [7, 4, 5, 10, 8, 9])
+
+    tokens = tokenizer.tokenize(u"UNwant\u00E9d,running for 10 km")
+    self.assertAllEqual(tokens,
+                        ['un', '##want', '##ed', ',', 'runn', '##ing', '[UNK]', '1@1', '0@0', 'km'])
+    self.assertAllEqual(
+        tokenizer.convert_tokens_to_ids(tokens), [7, 4, 5, 10, 8, 9, 0, 11, 12, 13])
+
+    tokens = tokenizer.tokenize(u"UNwant\u00E9d,running for 10km")
+    self.assertAllEqual(tokens,
+                        ['un', '##want', '##ed', ',', 'runn', '##ing', '[UNK]', 
+                         '1@1', '0@0', 'km'])
+    self.assertAllEqual(
+        tokenizer.convert_tokens_to_ids(tokens),
+        [7, 4, 5, 10, 8, 9, 0, 11, 12, 13])
+
+    tokens = tokenizer.tokenize(u"UNwant\u00E9d,running for 1,230km")
+    self.assertAllEqual(tokens,
+                        ['un', '##want', '##ed', ',', 'runn', '##ing', '[UNK]',
+                         '1@3', ',', '2@2', '3@1', '0@0', 'km'])
+    self.assertAllEqual(
+        tokenizer.convert_tokens_to_ids(tokens),
+        [7, 4, 5, 10, 8, 9, 0, 14, 10, 15, 16, 12, 13])
 
   def test_chinese(self):
     tokenizer = tokenization.BasicTokenizer()
@@ -66,10 +86,71 @@ class TokenizationTest(tf.test.TestCase):
         tokenizer.tokenize(u" \tHeLLo!how  \n Are yoU?  "),
         ["HeLLo", "!", "how", "Are", "yoU", "?"])
 
+  def test_run_split_on_punc(self):
+    tokenizer = tokenization.BasicTokenizer(do_lower_case=False)
+
+    self.assertAllEqual(
+        tokenizer._run_split_on_punc("How are you? I am fine. Thank you!"),
+        ["How are you", "?", " I am fine", ".", " Thank you", "!"])
+
+  def test_run_split_on_num(self):
+    tokenizer = tokenization.BasicTokenizer(do_lower_case=False)
+
+    self.assertEqual(
+        tokenizer._run_split_on_num("10km"),
+        (["10", "km"], [True, False]))
+
+    self.assertEqual(
+        tokenizer._run_split_on_num("12,345.67km"),
+        (["12,345.67", "km"], [True, False]))
+
+    self.assertEqual(
+        tokenizer._run_split_on_num("My10modelshavebeentrainingfor20days"),
+        (["My", "10", "modelshavebeentrainingfor", "20", "days"],
+        [False, True, False, True, False]))
+
+    self.assertEqual(
+        tokenizer._run_split_on_num("Ittakes10,000tobeanexpert."),
+        (["Ittakes", "10,000", "tobeanexpert."],
+        [False, True, False]))
+
+    self.assertEqual(
+        tokenizer._run_split_on_num("Ittakes10000tobeanexpert."),
+        (["Ittakes", "10000", "tobeanexpert."],
+        [False, True, False]))
+
+  def test_basic_tokenizer_with_number(self):
+    tokenizer = tokenization.BasicTokenizer(do_lower_case=False)
+
+    self.assertAllEqual(
+        tokenizer.tokenize("unwanted running for 1,234.5 meter"),
+        ["unwanted", "running", "for", "1,234.5", "meter"])
+
+    self.assertAllEqual(
+        tokenizer.tokenize("unwanted running for 1234.5 meter"),
+        ["unwanted", "running", "for", "1234.5", "meter"])
+
+    self.assertAllEqual(
+        tokenizer.tokenize("unwanted running for 1234 meter"),
+        ["unwanted", "running", "for", "1234", "meter"])
+
+    self.assertAllEqual(
+        tokenizer.tokenize("unwanted running for 1,234.5meter"),
+        ["unwanted", "running", "for", "1,234.5", "meter"])
+
+    self.assertAllEqual(
+        tokenizer.tokenize("unwanted running for 1234.5meter"),
+        ["unwanted", "running", "for", "1234.5", "meter"])
+
+    self.assertAllEqual(
+        tokenizer.tokenize("unwanted running for 1234meter"),
+        ["unwanted", "running", "for", "1234", "meter"])
+
   def test_wordpiece_tokenizer(self):
     vocab_tokens = [
         "[UNK]", "[CLS]", "[SEP]", "want", "##want", "##ed", "wa", "un", "runn",
-        "##ing", '1@3', '2@2', '4@0', '.', '5@-1',
+        "##ing", '1@3', '2@2', '4@0', '.', '5@-1', "1@5", "2@4", "3@3", "4@2",
+        "5@1", "6@0", "7@-1", "doll", "##ars"
     ]
 
     vocab = {}
@@ -90,6 +171,12 @@ class TokenizationTest(tf.test.TestCase):
         tokenizer.tokenize("unwanted running for 1,234.5 meter"),
         ['un', '##want', '##ed', 'runn', '##ing', '[UNK]', 
          '1@3', '[UNK]', '2@2', '[UNK]', '4@0', '.', '5@-1', '[UNK]'])
+
+    self.assertAllEqual(
+        tokenizer.tokenize("unwanted running for 123456.7 dollars"),
+        ['un', '##want', '##ed', 'runn', '##ing', '[UNK]',
+         "1@5", "2@4", "3@3", "4@2", "5@1", "6@0", '.', "7@-1",
+         "doll", "##ars"])
 
   def test_convert_by_vocab(self):
     vocab_tokens = [

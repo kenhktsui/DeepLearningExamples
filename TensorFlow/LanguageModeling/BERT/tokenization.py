@@ -265,7 +265,13 @@ class BasicTokenizer(object):
             if self.do_lower_case:
                 token = token.lower()
                 token = self._run_strip_accents(token)
-            split_tokens.extend(self._run_split_on_punc(token))
+            # split on number before punctuation so the comma in number can be parsed meaningfully.
+            split_num_token, is_number_list = self._run_split_on_num(token)
+            for token, is_num in zip(split_num_token, is_number_list):
+                if not is_num:
+                    split_tokens.extend(self._run_split_on_punc(token))
+                else:
+                    split_tokens.append(token)
 
         output_tokens = whitespace_tokenize(" ".join(split_tokens))
         return output_tokens
@@ -300,6 +306,31 @@ class BasicTokenizer(object):
             i += 1
 
         return ["".join(x) for x in output]
+
+    def _run_split_on_num(self, text):
+        """Splits number after being split for whitespace."""
+        num_pos = [(i.start(0), i.end(0))
+                   for i in re.finditer('([\d,]+[\d]+(\.\d+)?)|[\d]', text)]
+        split_pos_list = []
+        is_number = []
+        if num_pos:
+            prev_iend = None
+            for istart, iend in num_pos:
+                if istart != prev_iend and prev_iend is not None:
+                    split_pos_list.append((prev_iend, istart))
+                    is_number.append(False)
+                prev_iend = iend
+                split_pos_list.append((istart, iend))
+                is_number.append(True)
+            if num_pos[0][0] != 0:
+                split_pos_list.insert(0, (0, num_pos[0][0]))
+                is_number.insert(0, False)
+            if num_pos[-1][1] != len(text):           
+                split_pos_list.append((num_pos[-1][1], len(text)))
+                is_number.append(False)
+            return [text[s: e] for s, e in split_pos_list], is_number
+        else:
+            return [text], [False]
 
     def _tokenize_chinese_chars(self, text):
         """Adds whitespace around any CJK character."""
