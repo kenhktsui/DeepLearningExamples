@@ -30,7 +30,7 @@ class TokenizationTest(tf.test.TestCase):
         "[UNK]", "[CLS]", "[SEP]", "want", "##want", "##ed", "wa", "un", "runn",
         "##ing", ","
     ]
-    with tempfile.NamedTemporaryFile(delete=False) as vocab_writer:
+    with tempfile.NamedTemporaryFile(delete=False, mode="w") as vocab_writer:
       vocab_writer.write("".join([x + "\n" for x in vocab_tokens]))
 
       vocab_file = vocab_writer.name
@@ -69,7 +69,7 @@ class TokenizationTest(tf.test.TestCase):
   def test_wordpiece_tokenizer(self):
     vocab_tokens = [
         "[UNK]", "[CLS]", "[SEP]", "want", "##want", "##ed", "wa", "un", "runn",
-        "##ing"
+        "##ing", '1@3', '2@2', '4@0', '.', '5@-1',
     ]
 
     vocab = {}
@@ -86,7 +86,12 @@ class TokenizationTest(tf.test.TestCase):
     self.assertAllEqual(
         tokenizer.tokenize("unwantedX running"), ["[UNK]", "runn", "##ing"])
 
-  def test_convert_tokens_to_ids(self):
+    self.assertAllEqual(
+        tokenizer.tokenize("unwanted running for 1,234.5 meter"),
+        ['un', '##want', '##ed', 'runn', '##ing', '[UNK]', 
+         '1@3', '[UNK]', '2@2', '[UNK]', '4@0', '.', '5@-1', '[UNK]'])
+
+  def test_convert_by_vocab(self):
     vocab_tokens = [
         "[UNK]", "[CLS]", "[SEP]", "want", "##want", "##ed", "wa", "un", "runn",
         "##ing"
@@ -97,7 +102,7 @@ class TokenizationTest(tf.test.TestCase):
       vocab[token] = i
 
     self.assertAllEqual(
-        tokenization.convert_tokens_to_ids(
+        tokenization.convert_by_vocab(
             vocab, ["un", "##want", "##ed", "runn", "##ing"]), [7, 4, 5, 8, 9])
 
   def test_is_whitespace(self):
@@ -127,6 +132,30 @@ class TokenizationTest(tf.test.TestCase):
 
     self.assertFalse(tokenization._is_punctuation(u"A"))
     self.assertFalse(tokenization._is_punctuation(u" "))
+
+  def test_is_number(self):
+    self.assertTrue(tokenization._is_number('1,000'))
+    self.assertTrue(tokenization._is_number('1000'))
+    self.assertTrue(tokenization._is_number('1000.12'))
+    self.assertFalse(tokenization._is_number('1a2b'))
+    self.assertFalse(tokenization._is_number('bert'))
+
+  def test_tokenize_number_with_position(self):
+    self.assertEqual(tokenization.tokenize_number_with_position(
+                     ['1', ',', '0', '0', '0', '.', '2', '3'],
+                     {'1@3': 0, ',': 1, '0@1': 3, '0@0': 4, '.': 5, '2@-1': 6, '3@-2': 7},
+                     '[UNK]'),
+                     ['1@3', ',', '[UNK]', '0@1', '0@0', '.', '2@-1', '3@-2'])
+    self.assertEqual(tokenization.tokenize_number_with_position(
+                     ['1', ',', '0', '0', '0'],
+                     {'1@3': 0, ',': 1, '0@2': 2, '0@1': 3, '0@0': 4},
+                     '[UNK]'),
+                     ['1@3', ',', '0@2', '0@1', '0@0'])
+    self.assertEqual(tokenization.tokenize_number_with_position(
+                     ['1'],
+                     {'1@0': 0},
+                     '[UNK]'),
+                     ['1@0'])
 
 
 if __name__ == "__main__":

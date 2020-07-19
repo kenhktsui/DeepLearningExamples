@@ -26,6 +26,7 @@ import six
 import tensorflow as tf
 import re
 import os
+from typing import List
 
 
 PRETRAINED_VOCAB_ARCHIVE_MAP = {
@@ -379,6 +380,12 @@ class WordpieceTokenizer(object):
 
         output_tokens = []
         for token in whitespace_tokenize(text):
+            if _is_number(token):
+                output_tokens.extend(tokenize_number_with_position(token,
+                                                                   self.vocab,
+                                                                   self.unk_token))
+                continue
+
             chars = list(token)
             if len(chars) > self.max_input_chars_per_word:
                 output_tokens.append(self.unk_token)
@@ -449,3 +456,55 @@ def _is_punctuation(char):
     if cat.startswith("P"):
         return True
     return False
+
+
+def _is_number(text: str) -> bool:
+    """Checks whether a string is a number."""
+    if text in [',', '.']:
+        return False
+    return all([c.isdigit() or c in [',', '.'] for c in text])
+
+
+def tokenize_number_with_position(text: str, 
+                                  vocab: collections.OrderedDict, 
+                                  unk_token: str) -> List[str]:
+    """tokenize number with respect to its position in numeral system"""
+    text_with_position = []
+    if '.' in text:
+        before_decimal = text[:text.index('.')]
+        after_decimal = text[text.index('.'):]
+    else:
+        before_decimal = text
+        after_decimal = []
+
+    before_decimal_digit_len = len([i for i in before_decimal if i.isdigit()]) - 1
+    text_with_position += _infuse_number_with_position(before_decimal,
+                                                       vocab,
+                                                       unk_token,
+                                                       before_decimal_digit_len)
+
+    after_decimal_place = -1
+    text_with_position += _infuse_number_with_position(after_decimal,
+                                                       vocab,
+                                                       unk_token,
+                                                       after_decimal_place)
+    return text_with_position
+
+
+def _infuse_number_with_position(text: List[str],
+                                 vocab: collections.OrderedDict,
+                                 unk_token: str,
+                                 start_idx: int) -> List[str]:
+    text_with_position = []
+    for c in text:
+        if c.isdigit():
+            token = f'{c}@{start_idx}'
+            start_idx -= 1
+        else:
+            token = c
+
+        if token in vocab:
+            text_with_position.append(token)
+        else:
+            text_with_position.append(unk_token)
+    return text_with_position
