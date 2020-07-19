@@ -24,6 +24,7 @@ fi
 
 python3 /workspace/bert/data/bertPrep.py --action download --dataset wikicorpus_en
 python3 /workspace/bert/data/bertPrep.py --action download --dataset google_pretrained_weights  # Includes vocab
+wget -O /workspace/bert/data/download/google_pretrained_weights/uncased_L-12_H-768_A-12/vocab.txt 'https://drive.google.com/u/0/uc?id=1koqRmspSbklFoOxzNA-XdIxg2dU8DXbC&export=download'
 python3 /workspace/bert/data/bertPrep.py --action download --dataset squad
 python3 /workspace/bert/data/bertPrep.py --action download --dataset mrpc
 python3 /workspace/bert/data/bertPrep.py --action download --dataset sst-2
@@ -45,9 +46,9 @@ python3 /workspace/bert/data/bertPrep.py --action sharding --dataset $DATASET
 
 # Create TFRecord files Phase 1
 python3 ${BERT_PREP_WORKING_DIR}/bertPrep.py --action create_tfrecord_files --dataset books_wiki_en_corpus --max_seq_length 128 \
- --max_predictions_per_seq 20 --vocab_file ${BERT_PREP_WORKING_DIR}/download/google_pretrained_weights/uncased_L-24_H-1024_A-16/vocab.txt
+ --max_predictions_per_seq 20 --vocab_file ${BERT_PREP_WORKING_DIR}/download/google_pretrained_weights/uncased_L-12_H-768_A-12/vocab.txt
 
 
 # Create TFRecord files Phase 2
 python3 ${BERT_PREP_WORKING_DIR}/bertPrep.py --action create_tfrecord_files --dataset books_wiki_en_corpus --max_seq_length 512 \
- --max_predictions_per_seq 80 --vocab_file ${BERT_PREP_WORKING_DIR}/download/google_pretrained_weights/uncased_L-24_H-1024_A-16/vocab.txt
+ --max_predictions_per_seq 80 --vocab_file ${BERT_PREP_WORKING_DIR}/download/google_pretrained_weights/uncased_L-12_H-768_A-12/vocab.txt
