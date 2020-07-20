@@ -45,10 +45,10 @@ fi
 python3 /workspace/bert/data/bertPrep.py --action sharding --dataset $DATASET
 
 # Create TFRecord files Phase 1
-python3 ${BERT_PREP_WORKING_DIR}/bertPrep.py --action create_tfrecord_files --dataset books_wiki_en_corpus --max_seq_length 128 \
+python3 ${BERT_PREP_WORKING_DIR}/bertPrep.py --action create_tfrecord_files --dataset $DATASET --max_seq_length 128 \
  --max_predictions_per_seq 20 --vocab_file ${BERT_PREP_WORKING_DIR}/download/google_pretrained_weights/uncased_L-12_H-768_A-12/vocab.txt
 
 
 # Create TFRecord files Phase 2
-python3 ${BERT_PREP_WORKING_DIR}/bertPrep.py --action create_tfrecord_files --dataset books_wiki_en_corpus --max_seq_length 512 \
+python3 ${BERT_PREP_WORKING_DIR}/bertPrep.py --action create_tfrecord_files --dataset $DATASET --max_seq_length 512 \
  --max_predictions_per_seq 80 --vocab_file ${BERT_PREP_WORKING_DIR}/download/google_pretrained_weights/uncased_L-12_H-768_A-12/vocab.txt
