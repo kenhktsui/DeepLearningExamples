@@ -28,8 +28,9 @@ bert_model=${10:-"large"}
 num_accumulation_steps=${11:-1}
 seq_len=${12:-512}
 max_pred_per_seq=${13:-80}
+dataset=${14:-"wiki_en_corpus"}
 
-DATA_DIR=data/tfrecord/lower_case_1_seq_len_${seq_len}_max_pred_${max_pred_per_seq}_masked_lm_prob_0.15_random_seed_12345_dupe_factor_5_shard_1472_test_split_10/books_wiki_en_corpus
+DATA_DIR=data/tfrecord/lower_case_1_seq_len_${seq_len}_max_pred_${max_pred_per_seq}_masked_lm_prob_0.15_random_seed_12345_dupe_factor_5_shard_1472_test_split_10/${dataset}
 
 if [ "$bert_model" = "large" ] ; then
     export BERT_CONFIG=data/download/google_pretrained_weights/uncased_L-24_H-1024_A-16/bert_config.json
